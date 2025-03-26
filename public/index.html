@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="jp">
+<head>
+<title>TEST</title>
+<meta charset="utf8"/>
+<meta http-equiv="pragma" content="no-cache"/>
+<script src="//code.jquery.com/jquery-2.2.4.min.js"></script>
+<link href="//maxcdn.bootstrapcdn.com/bootstrap/4.5.1/css/bootstrap.min.css" rel="stylesheet"/>
+<script src="//maxcdn.bootstrapcdn.com/bootstrap/4.5.1/js/bootstrap.min.js"></script>
+<link href="//use.fontawesome.com/releases/v5.15.4/css/all.css" rel="stylesheet"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<style>
+.bg-defuser {
+    width: 3em;
+    height: 3em;
+}
+
+.send-area {
+    background-color: white;
+    padding-bottom: 0.5em;
+    position: fixed;
+    top: 0px;
+    width: 100%;
+    z-index: 127;
+}
+.main-board {
+    position: absolute;
+    top: 128px;
+    z-index: 64;
+}
+
+.tweet {
+    animation-name: ani1;
+    animation-duration: 1.3s;
+    animation-timing-function: ease;
+    animation-iteration-count: 1;
+    animation-fill-mode: forwards; /*終了後も維持*/
+    opacity: 0;
+    /*ブラウザ別設定*/
+    -moz-animation-duration: 1.3s;
+    -moz-animation-name: ani1;
+    -webkit-animation-duration: 1.3s;
+    -webkit-animation-name: ani1;
+}
+/*キーフレーム設定*/
+@keyframes ani1 {
+    0% {
+        opacity: 0;
+    }
+    1% {
+        opacity: 0;
+    }
+    100% {
+        opacity: 1;
+    }
+}
+@-moz-keyframes ani1 {
+    0% {
+        opacity: 0;
+    }
+    1% {
+        opacity: 0;
+    }
+    100% {
+        opacity: 1;
+    }
+}
+@-webkit-keyframes ani1 {
+    0% {
+        opacity: 0;
+    }
+    1% {
+        opacity: 0;
+    }
+    100% {
+        opacity: 1;
+    }
+}
+</style>
+<script>
+var context = null;
+var session_id = null;
+function pre_wxa(){
+/*
+```(input JSON)
+{
+  deepl: {
+    source_lang: "en",
+    target_lang: "ja"
+  },
+  params: {
+    session_id: "xxxxxx"
+  },
+  payload: "text in source_lang"
+}
+```
+*/
+  var text = $("#text").val();
+  var lang = $("#lang").val();
+  var data = {
+    deepl: {
+      source_lang: lang,
+      target_lang: 'JA'
+    },
+    params: {
+    },
+    payload: text
+  };
+  if( session_id ){
+    data.params.session_id = session_id;
+  }
+
+  $.ajax({
+    type: 'POST',
+    url: '/api/pre_wxa',
+    data: data,
+    success: function( result1 ){
+      console.log( {result1} );
+    },
+    error: function( e ){
+      console.log( {e} );
+    }
+  });
+}
+
+function post_wxa(){
+/*
+```(input JSON)
+{
+  deepl: {
+    source_lang: "ja",
+    target_lang: "en"
+  },
+  _msgid: "xxxx",
+  params: {
+    session_id: "xxxxxx"
+  },
+  payload: {
+    user_id: "xxxxx",
+    session_id: "xxxxxx",
+    output: {
+      generic: [
+        { response_type: "text", text: "text in source_lang" }, ..
+      ],
+      intents: [
+        { intent: "bye", confidence: 1, skill: "main skill" },
+      ],
+      entities: [
+      ]
+    },
+    context: { .. }
+  },
+  req: { .. },
+  res: { .. }
+}
+```
+*/
+  var text = $("#text").val();
+  var lang = $("#lang").val();
+  var data = {
+    deepl: {
+      source_lang: 'JA',
+      target_lang: lang
+    },
+    params: {
+    },
+    payload: {
+      user_id: 'xxx',
+      output: {
+        generic: [
+          { response_type: 'text', text: text }
+        ]
+      }
+    }
+  };
+  if( session_id ){
+    data.params.session_id = session_id;
+    data.payload.session_id = session_id;
+  }
+
+  $.ajax({
+    type: 'POST',
+    url: '/api/post_wxa',
+    data: data,
+    success: function( result2 ){
+      console.log( {result2} );
+    },
+    error: function( e ){
+      console.log( {e} );
+    }
+  });
+}
+
+function submitMessage(){
+  var div = document.createElement("div");
+  div.innerHTML = '' +
+  '      <div class="col-1">' +
+  '        <!-- margin:padding -->' +
+  '      </div>' +
+  '      <div class="col-10 media tweet">' +
+  '        <div class="media-body">' +
+  '          <div class="alert alert-success">' +
+  document.getElementById("tweet").value +
+  '          </div>' +
+  '        </div>' +
+  '        <div class="media-right">' +
+  '        <i class="fas fa-user fa-3x"></i>' +
+  '        </div>' +
+  '      </div>' +
+  '      <div class="col-1">' +
+  '        <!-- margin:padding -->' +
+  '      </div>';
+  div.setAttribute("class", "row");
+  document.getElementById("field").appendChild(div);
+
+  /*強制スクロール*/
+  var h = window.parent.screen.height;
+  scrollTo(0, h);
+
+  /*APIで呼び出す相手の返事*/
+  window.setTimeout( callAssistant, 800 );
+}
+</script>
+</head>
+<body>
+
+<div class="container-fluid send-area">
+  <h1>TEST</h1>
+  <div class="row">
+    <div class="col-2">
+      <select id="lang">
+      <option value="en" selected>EN</option>
+      <option value="fr" selected>FR</option>
+      </select>
+    </div>
+    <div class="col-8 input-group mb-3">
+      <input id="text" type="text" class="form-control" placeholder="入力テキスト"/>
+      <div class="input-group-append">
+        <button onClick="pre_wxa();" id="pre_wxa_btn" type="button" class="btn btn-outline-secondary">pre_wxa</button>
+        <button onClick="post_wxa();" id="post_wxa_btn" type="button" class="btn btn-outline-secondary">post_wxa</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- main board -->
+<div class="container main-board" style="font-size: 1.25em;" id="field">
+</div>
+
+</body>
+</html>
