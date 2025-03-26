@@ -181,7 +181,9 @@ function post_wxa(){
   $.ajax({
     type: 'POST',
     url: '/api/post_wxa',
-    data: data,
+    contentType: 'application/json',
+    dataType: 'json',
+    data: JSON.stringify( data ),
     success: function( result2 ){
       console.log( {result2} );
     },
