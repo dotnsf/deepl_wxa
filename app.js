@@ -109,9 +109,6 @@ app.post( '/api/pre_wxa', function( req, res ){
       //. 翻訳せずそのまま出力
       res.write( JSON.stringify( msg, null, 2 ) );
       res.end();
-
-      res.write( JSON.stringify( msg, null, 2 ) );
-      res.end();
     }
   }else{
     res.status( 400 );
