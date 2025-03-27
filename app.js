@@ -70,22 +70,23 @@ app.post( '/api/translate', function( req, res ){
 
 app.post( '/api/pre_wxa', function( req, res ){
   res.contentType( 'application/json; charset=utf8' );
-  if( authkey ){
-    var msg = req.body;
-    if( msg && msg.deepl ){
-      var source_lang = msg.deepl.source_lang;
-      var target_lang = msg.deepl.target_lang;
-      var text = msg.payload;
-      if( text && source_lang && target_lang ){
-        var params = new URLSearchParams();
-        params.append( 'text', text );
-        params.append( 'target_lang', target_lang );
+  var msg = req.body;
+  if( typeof msg == 'string' ){ msg = JSON.parse( msg ); }
+  //if( typeof msg.payload == 'string' ){ msg.payload = JSON.parse( msg.payload ); }
+  if( msg && msg.deepl ){
+    var source_lang = msg.deepl.source_lang;
+    var target_lang = msg.deepl.target_lang;
+    var text = msg.payload;
+    if( text && source_lang && target_lang ){
+      var params = new URLSearchParams();
+      params.append( 'text', text );
+      params.append( 'target_lang', target_lang );
 
-        var source_lang = req.body.source_lang;
-        if( source_lang ){
-          params.append( 'source_lang', source_lang );
-        }
+      if( source_lang ){
+        params.append( 'source_lang', source_lang );
+      }
 
+      if( authkey ){
         axios.post( '/v2/translate', params )
         .then( function( result ){
           //console.log( {result} );  //. result.data.translations = [ { detected_source_language: "JA", text: "Hello" }, .. ]
@@ -96,49 +97,50 @@ app.post( '/api/pre_wxa', function( req, res ){
           res.write( JSON.stringify( msg, null, 2 ) );
           res.end();
         }).catch( function( err ){
-          res.status( 400 );
-          res.write( JSON.stringify( err, null, 2 ) );
+          msg.warning = err;
+          res.write( JSON.stringify( msg, null, 2 ) );
           res.end();
         });
       }else{
-        res.status( 400 );
-        res.write( JSON.stringify( { error: 'no text and/or target_lang specified in request body.' }, null, 2 ) );
+        msg.warning = 'no AUTHKEY specified as env variable.';
+        res.write( JSON.stringify( msg, null, 2 ) );
         res.end();
       }
     }else{
-      //. 翻訳せずそのまま出力
+      msg.warning = 'no text and/or target_lang specified in request body.';
       res.write( JSON.stringify( msg, null, 2 ) );
       res.end();
     }
   }else{
-    res.status( 400 );
-    res.write( JSON.stringify( { error: 'no AUTHKEY specified as env variable.' }, null, 2 ) );
+    //. 翻訳せずそのまま出力
+    msg.warning = 'no deepl information found in request body.';
+    res.write( JSON.stringify( msg, null, 2 ) );
     res.end();
   }
 });
 
 app.post( '/api/post_wxa', async function( req, res ){
   res.contentType( 'application/json; charset=utf8' );
-  if( authkey ){
-    var msg = req.body;
-    if( typeof msg == 'string' ){ msg = JSON.parse( msg ); }
-    if( typeof msg.payload == 'string' ){ msg.payload = JSON.parse( msg.payload ); }
-    msg.num = 0;
-    if( msg && msg.deepl ){
-    msg.num = 1;
-      var source_lang = msg.deepl.source_lang;
-      var target_lang = msg.deepl.target_lang;
-      var text = ( msg.payload && msg.payload.output && msg.payload.output.generic && msg.payload.output.generic.length > 0 && msg.payload.output.generic[0].text ) ? msg.payload.output.generic[0].text : '';
-      if( text && source_lang && target_lang ){
-    msg.num = 2;
-    msg.length = msg.payload.output.generic.length;
+  var msg = req.body;
+  if( typeof msg == 'string' ){ msg = JSON.parse( msg ); }
+  if( typeof msg.payload == 'string' ){ msg.payload = JSON.parse( msg.payload ); }
+  msg.num = 0;
+  if( msg && msg.deepl ){
+  msg.num = 1;
+    var source_lang = msg.deepl.source_lang;
+    var target_lang = msg.deepl.target_lang;
+    var text = ( msg.payload && msg.payload.output && msg.payload.output.generic && msg.payload.output.generic.length > 0 && msg.payload.output.generic[0].text ) ? msg.payload.output.generic[0].text : '';
+    if( text && source_lang && target_lang ){
+  msg.num = 2;
+  msg.length = msg.payload.output.generic.length;
+      if( authkey ){
         for( var i = 0; i < msg.payload.output.generic.length; i ++ ){
-    msg.num = 3;
-    msg.i = i;
+  msg.num = 3;
+  msg.i = i;
           text = msg.payload.output.generic[i].text;
           if( text ){
-    msg.num = 4;
-    msg.text = text;
+  msg.num = 4;
+  msg.text = text;
             var params = new URLSearchParams();
             params.append( 'text', text );
             params.append( 'target_lang', target_lang );
@@ -148,14 +150,14 @@ app.post( '/api/post_wxa', async function( req, res ){
             }
         
             var result = await axios.post( '/v2/translate', params );
-    msg.num = 5;
+  msg.num = 5;
             if( typeof result == 'string' ){ result = JSON.parse( result ); }
 
             //console.log( {result} );  //. result.data.translations = [ { detected_source_language: "JA", text: "Hello" }, .. ]
             //. 元の req.body オブジェクトのフォーマットのまま翻訳結果だけを入れ替えて返す
             if( result && result.data && result.data.translations && result.data.translations.length > 0 && result.data.translations[0].text ){
-    msg.num = 6;
-    msg.translations_text = result.data.translations[0].text;
+  msg.num = 6;
+  msg.translations_text = result.data.translations[0].text;
               msg.payload.output.generic[i].text = result.data.translations[0].text;
             }
           }
@@ -164,18 +166,19 @@ app.post( '/api/post_wxa', async function( req, res ){
         res.write( JSON.stringify( msg, null, 2 ) );
         res.end();
       }else{
-        res.status( 400 );
-        res.write( JSON.stringify( { error: 'no text and/or target_lang specified in request body.' }, null, 2 ) );
+        msg.warning = 'no AUTHKEY specified as env variable.';
+        res.write( JSON.stringify( msg, null, 2 ) );
         res.end();
       }
     }else{
-      //. 翻訳せずそのまま出力
+      msg.warning = 'no text and/or target_lang specified in request body.';
       res.write( JSON.stringify( msg, null, 2 ) );
       res.end();
     }
   }else{
-    res.status( 400 );
-    res.write( JSON.stringify( { error: 'no AUTHKEY specified as env variable.' }, null, 2 ) );
+    //. 翻訳せずそのまま出力
+    msg.warning = 'no deepl information found in request body.';
+    res.write( JSON.stringify( msg, null, 2 ) );
     res.end();
   }
 });
